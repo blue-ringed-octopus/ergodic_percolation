@@ -97,6 +97,7 @@ plt.yticks(np.arange(0,int(np.nanmax(critical)),3))
 plt.title("Kc vs pTp")
 plt.legend()
 #%%
+K = 50
 num_trials = 30
 num_regions = 100
 p = np.random.rand(num_regions)
@@ -133,7 +134,7 @@ for ii, num_robot in enumerate(num_robots):
 x =  np.linspace(2,250, 1000)
 # plt.plot(x,np.exp(2.55)*(np.log(x)**2/(x)**0.81)*(-np.log(pTp))**0.5, '--', color="r")
 # plt.plot(x,np.exp(3.35)*(np.log(0.2*x+0.8)**2/(x)**0.83)*(-np.log(pTp))**1, '--', color="r")
-plt.plot(x,np.exp(0)*(np.log(0.3*x+0.7)**2/(x)**((1-pTp)))*(-np.log(pTp))**17, '--', color="r")
+plt.plot(x,np.exp(0)*(np.log(0.3*x+0.7)**2/(x)**((1-pTp)))*(-np.log(pTp))**1, '--', color="r")
 
 plt.plot(2,1/pTp-1, 'x', color="r")
 

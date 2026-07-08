@@ -9,8 +9,18 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt 
 
+def pk(n, pTp, k):
+    return  (((1 - pTp)**k - 1)*(pTp - 1) + pTp*(pTp*(n - 2))**(k + 1) + pTp*((1 - pTp)**(k + 1) - 1)*(n - 2))/((pTp*(n - 2) - 1)*(pTp + pTp*(n - 2) - 1))
+
+def K_theory(pTp, n):
+    Pc = 2*np.log(n)/n
+    p=pTp
+    k=1
+    while p<Pc:
+        pass
+
 data = {}
-for i in range(3):
+for i in range(4):
     with open("data/"+str(i)+'.p', 'rb') as file:
        data[i] = pickle.load(file)
        
@@ -36,3 +46,5 @@ for dat in data.values():
     # plt.yticks(np.arange(0,int(np.nanmax(np.quantile(critical, 0.75, axis=1))),3))
     plt.title("Kc vs number of robots, pTp = " + str(pTp))
     plt.legend()
+    
+    

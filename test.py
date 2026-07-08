@@ -1,48 +1,93 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Nov 11 17:30:15 2025
+Created on Mon Nov 24 18:40:22 2025
 
 @author: hibado
 """
 
 import numpy as np
-import networkx as nx
-from itertools import combinations
 import matplotlib.pyplot as plt 
-n = 30
-K = 50
-critical=np.zeros([20,30])*np.nan
-p_c = np.log(n)/n
-p_arr = np.linspace(0.001,0.2, 20)
-for m in range(len(p_arr)):
-    p = p_arr[m]
-    for trial in range(30):
-        G=nx.DiGraph()
-        for k in range(K):
-            reachable = 1
-            for i in range(n):
-                G.add_edge(str(i)+"["+str(k)+"]", str(i)+"["+str(k+1)+"]")
-                G.add_edge(str(i)+"["+str(k)+"]", str(i)+"["+str(k)+"]")
-    
-            for i,j in combinations(range(n), 2): 
-                if np.random.rand()<p:
-                    G.add_edge(str(i)+"["+str(k)+"]", str(j)+"["+str(k)+"]")
-                    G.add_edge(str(j)+"["+str(k)+"]", str(i)+"["+str(k)+"]")
-            for i in range(n):
-                for j in range(n):
-                    if not j==i:
-                        reachable = reachable*nx.has_path(G,str(i)+"["+str(0)+"]", str(j)+"["+str(k)+"]")
-            if reachable:
-                critical[m,trial]=k
-                break
-#%%
-stat= np.nanmean(critical, axis=1)
-plt.plot(p_arr, critical, '.', color="r", alpha=0.05)
-plt.plot(p_arr, stat, '--')
-# plt.plot(p_arr , np.log(1-p_c)/np.log(1-p_arr), '--',color="r")
 
-plt.vlines(p_c,0,np.nanmax(critical) ,linestyle = "--", label="bernoulli percolation")
-plt.xlabel("p")
-plt.ylabel("k")
-plt.yticks(np.arange(0,int(np.nanmax(critical)),3))
-plt.legend()
+ptp = 0.06
+n=100
+
+p = ptp
+ps = [p]
+
+for k in np.arange(2,50,1):   
+    p_noindirect = 1
+    for pk in ps:
+        p_noindirect *= (1-ptp*(pk))
+    p = 1-((1-ptp)**k)*(p_noindirect)**((n-2))
+    ps.append(p)
+
+ 
+ps = np.array(ps)
+plt.figure()    
+plt.plot(np.arange(1,50,1),ps**(n**2-n), ".")
+plt.xlabel("k")
+plt.ylabel(r"$p^n$")
+#%%
+def p_connected(ptp, k, n):
+    if n == 2:
+        return 1-(1-ptp)**k
+    
+    thres = 0.5
+    if ptp==0:
+        return np.inf
+    if ptp>=thres:
+        return 1
+    ps=[ptp]
+    k=1
+    while ps[-1]<thres:
+        k+=1
+        p_noindirect = 1
+        for pk in ps:
+            p_noindirect *= (1-ptp*(pk))
+        p = 1-((1-ptp)**k)*(p_noindirect)**((n-2))
+        ps.append(p)
+
+    return (k-1)+1/(ps[-1]-ps[-2])*(thres-ps[-2])
+
+n=100
+thres = 0.5
+kc=[]
+num_points = 5000
+for ptp in np.linspace(0.01,thres-0.01,num_points):
+    p = ptp
+    ps = [p]
+    k=1
+    while p<thres:   
+        k+=1
+        p_noindirect = 1
+        for pk in ps:
+            p_noindirect *= (1-ptp*(pk))
+        p = 1-((1-ptp)**k)*(p_noindirect)**((n-2))
+        ps.append(p)
+    kc.append((k-1)+1/(ps[-1]-ps[-2])*(thres-ps[-2]))
+
+plt.figure()    
+plt.plot(np.linspace(0.06,1,num_points), kc, ".")
+plt.xlabel("pTp")
+plt.ylabel(r"$K_c$")
+
+#%%
+ptp = 0.01
+kc=[]
+thres = 0.5
+for n in np.arange(2,250,1):
+    p = ptp
+    ps = [p]
+    k=1
+    while p<thres: 
+        k+=1
+        p_noindirect = 1
+        for pk in ps:
+            p_noindirect *= (1-ptp*(pk))
+        p = 1-((1-ptp)**k)*(p_noindirect)**((n-2))
+        ps.append(p)
+    kc.append((k-1)+1/(ps[-1]-ps[-2])*(thres-ps[-2]))
+plt.figure()        
+plt.plot(np.arange(2,250,1), kc, ".")
+plt.xlabel("n")
+plt.ylabel(r"$K_c$")

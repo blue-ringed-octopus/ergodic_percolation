@@ -14,222 +14,104 @@ import networkx as nx
 from tqdm import tqdm
 import pickle 
 import colorsys as cs
+import os
+from absorbing_model import Absoorbing_Model
+from time import time 
 
-with open("percolation_trials.pkl", "rb") as file:
+num_method = 13
+
+with open("resources/percolation_trials.pkl", "rb") as file:
     graph_data = pickle.load(file)
-
-num_method = 10
-colors=[cs.hsv_to_rgb(i/num_method, 0.9, 0.9) for i in range(num_method)]
-
-def Mk(k, pk, method, num_robot):
-    M = np.zeros((num_robot,num_robot))
-    p = pk[k]
-    p_not_meet_conditional = (1-(np.inner(p,p)))
-    for i in range(num_robot):
-        for j in range(num_robot):
-            I = j+1 #informed robot
-            n = num_robot - I # number of uninformed robot
-            if n==0:
-                if i>=j:
-                    M[i,j] = 1
-            else:
-                match method:
-                    case 0:
-                        p_informed_condition = kemeny_factor*(1-(p_not_meet_conditional)**I)
-                    case 1:
-                        p_informed_condition = (kemeny_factor_k[k])*(1-(p_not_meet_conditional)**I)
-                    case 2:
-                        p_informed_condition = (kemeny_factor)*np.tanh(I*kemeny_factor)*(1-(p_not_meet_conditional)**I)
-                    case 3:
-                        p_informed_condition = (kemeny_factor_k[k])*np.tanh(I*kemeny_factor_k[k])*(1-(p_not_meet_conditional)**I)
-                    case 4:
-                        p_informed_condition = (1-(p_not_meet_conditional)**(I*(kemeny_factor)))
-                    case 5:
-                        p_informed_condition = (1-(p_not_meet_conditional)**(I*(kemeny_factor_k[k])))
-                    case 6:
-                        p_informed_condition = (1-(p_not_meet_conditional)**(I*(kemeny_factor*np.tanh(I*(kemeny_factor)))))
-                    case 7: 
-                        p_informed_condition = (1-(p_not_meet_conditional)**(I*(kemeny_factor_k[k]*np.tanh(I*kemeny_factor_k[k]))))
-                    # elif method == 6: 
-                    #     p_informed_condition = (1-(p_not_meet_conditional)**(I*((num_regions/kemeny)*np.tanh(num_robot/I*num_regions/kemeny))))
-                    case 8:
-                        if k==0:
-                            p_informed_condition = np.inner(pk[0],pk[0])
-                        else:
-                            p_not_met_k = (1-lambda2**k)*p_not_met[k]**(I)+lambda2**k*p_not_met[k]
-                            p_not_met_k1 = (1-lambda2**(k-1))*p_not_met[k-1]**(I)+lambda2**(k-1)*p_not_met[k-1]
-                            p_met_k = 1-p_not_met_k
-                            p_met_k1 = 1-p_not_met_k1
-                            p_first_meet_k = p_met_k - p_met_k1
-                            p_informed_condition = p_first_meet_k/(p_not_met_k1)
-                        
-                    case 9: 
-                        if k==0:
-                            p_informed_condition = np.inner(pk[0],pk[0])
-                        else:
-                            p_not_met_k = p_not_met[k]**(I+(1-I)*a[k])
-                            p_not_met_k1 = p_not_met[k-1]**(I+(1-I)*a[k-1])
-                            
-                            p_met_k = 1-p_not_met_k
-                            p_met_k1 = 1-p_not_met_k1
-                            p_first_meet_k = p_met_k - p_met_k1
-                            p_informed_condition = p_first_meet_k/(p_not_met_k1)
-                    
-                if i>=j:
-                    r = i - j  #increment of informed robot 
-                    M[i,j] = math.comb(n,r)*(p_informed_condition)**r*(1-p_informed_condition)**(n-r)
-    return M
-
-def p_absorb_markov(P, p0,num_robot,  method=0):
-    K0 = 999
-    M0 = np.zeros((K0,num_robot,num_robot))
     
-        
-    for k in tqdm(range(K0)):
-        M0[k,:,:] = Mk(k, pk, method, num_robot)
-                
-    v = np.zeros(num_robot-1)
-    v[0]=1
-    p_percolation_preds=[]
-    prod = np.eye(num_robot-1)
-    for T in np.arange(0,K0,1):
-        prod = M0[T,:num_robot-1, :num_robot-1].copy()@prod
-        p_percolation_preds.append(1- sum(prod@v))    
-    k_pred =sum([(p_percolation_preds[k]-p_percolation_preds[k-1])*k for k in np.arange(1,K0)])
-    M = M0
-    return p_percolation_preds, k_pred, M
+    
+if os.path.isfile("resources/percolation_trials_pred.pkl"):    
+    with open("resources/percolation_trials_pred.pkl", "rb") as file:
+        data = pickle.load(file)
+else:
+    dat = {"p percolation single": None,
+            "p percolation all": None,
+            "informed percentage": None}
+    
+    data = {}
+    for graph in range(len(graph_data)):
+        data[graph] = {}
+        for method in range(num_method):
+            data[graph][method] = dat.copy()
 
 
-k_preds_singles = [[] for _ in range(len(graph_data))]
-k_preds_all = [[] for _ in range(len(graph_data))]
-p_percolation_preds_singles=[[] for _ in range(len(graph_data))]
-p_percolation_preds=[[] for _ in range(len(graph_data))]
-kemeny_factors = []
 
-for i, dat in enumerate(graph_data):
+# p_percolation_preds_singles = data["p percolation single"] 
+# p_percolation_preds = data["p percolation all"]
+
+# p_percolation_preds_singles+=[[] for _ in range(len(graph_data)- len(p_percolation_preds_singles))]
+# p_percolation_preds+=[[] for _ in range(len(graph_data)- len(p_percolation_preds))]
+
+
+for i, dat in enumerate(tqdm(graph_data)):
     P = dat["P"]
     p0 = dat["p0"]
     num_regions = len(P)
     num_robot = dat["num_robots"]
+    if dat['p percolation single'][-1]>0.9:
+        model = Absoorbing_Model(P, p0, num_robot)
+        k_preds_singles = []
+        t = time()
+        for method in range(num_method):
+            if method==12:
+                continue 
+            if data[i][method]['p percolation single'] is None:
+                k_max = len(dat['p percolation single'])
+                p_percolation_preds_single, k_pred, M = model.pred(method, k_max)
+                k_preds_singles.append(k_pred)
+                
 
-    lambda_, _ = np.linalg.eig(P)
-    idx = np.argsort(np.abs(lambda_))
-    lambda2 = np.abs(lambda_[idx[-2]])
-    a = [lambda2**k for k in range(9999)]
-
-    P_infty = np.linalg.matrix_power(P, 9999)
-    p_infty = P_infty[:,0]
-    P_perp = P-P_infty
-    P_perp_k = [np.linalg.matrix_power(P_perp,k) for k in range(1000)]
-    Z_k = [np.sum(P_perp_k[:k+1], axis=0) for k in range(999)]
-    Z = np.linalg.inv(np.eye(num_regions)-(P_perp))
-    kemeny = np.trace(Z)
-    kemeny_k = np.array([np.trace(x) for x in Z_k])
-    kemeny_factor = num_regions/kemeny
-    kemeny_factor_k = num_regions/kemeny_k
-    kemeny_factors.append(kemeny_factor)
-    pk=[p0.copy()]
+                percolation_percent_expected =[1/num_robot]
+                v=np.zeros(num_robot)
+                v[0]=1
+                for Mk in M:
+                    v=Mk@v
+                    percolation_percent_expected.append(1/num_robot*np.inner(v,np.arange(1,num_robot+1)))
+                data[i][method]['p percolation single'] = p_percolation_preds_single
+                data[i][method]['p percolation all'] = np.array([p**(num_robot-1) for p in p_percolation_preds_single])
+                data[i][method]['informed percentage'] = percolation_percent_expected
+                
+                print(method, time()-t)
+                t = time()
+            with open("resources/percolation_trials_pred.pkl", "wb") as file:
+                pickle.dump(data, file)
     
-    q_state = []
-    idx = []
-    for ii in range(num_regions):
-        for j in range(num_regions):
-            if ii==j:
-                idx.append(num_regions*ii+j)
-            else:    
-                q_state.append((ii,j))
-
- 
-    p0_kron = np.kron(p0, p0)
-    # p_infty_kron =np.kron(p_infty,p_infty) 
-    P_kron= np.kron(P,P)
-
-    Q = P_kron.copy()
-    Q=np.delete(Q,idx, 0)
-    Q=np.delete(Q,idx, 1)
-
-    q0 = p0_kron.copy()
-    q0 = np.delete(q0,idx)
-
-    # p_kron = [p0_kron]
-    # for k in range(1000):
-    #     p_kron.append(P_kron@p_kron[-1].copy())
-        
-    q = [q0]
-    for k in range(1000):
-        q.append(Q@q[-1].copy())
-        
 
 
-        
-
-    p_not_met = np.sum(q, axis=1)
-    
-    for k in range(1000):
-        pk.append(P@pk[k].copy())
-        
-    for method in range(num_method):
-        p_percolation_preds_single, k_pred, M = p_absorb_markov(P.copy(), p0.copy(), num_robot, method)
-        k_preds_singles[i].append(k_pred)
-        p_percolation_preds_singles[i].append(p_percolation_preds_single)
-
-        percolation_percent_expected =[1/num_robot]
-        v=np.zeros(num_robot)
-        v[0]=1
-        for k in range(999):
-            v=M[k,:,:]@v
-            percolation_percent_expected.append(1/num_robot*np.inner(v,np.arange(1,num_robot+1)))
-        
-        p_percolation_preds[i].append(np.array([p**(num_robot-1) for p in p_percolation_preds_single]))
-    
-    K_plot = int(min(3*max(k_preds_singles[i]),len(M)))
-        
-        
-    plt.figure(dpi=800)
-    plt.plot(np.arange(0,K_plot,1), dat["p percolation single"][0:K_plot], color = "k", label="simulations" )
-    for ii, p_percolation_preds_single in enumerate(p_percolation_preds_singles[i]):
-        plt.plot(np.arange(0,min(K_plot, len(p_percolation_preds_single)),1), p_percolation_preds_single[:min(K_plot, len(p_percolation_preds_single))], linestyle="--", label = f"method{ii}", color = colors[ii])
-    
-    plt.xlabel("k (time step)")
-    plt.ylabel("Full Percolation Probability ")
-    plt.title(f"Percolation Probability (single source, {num_robot} agents, {num_regions} regions)")
-    plt.legend()
-    
-    
-    plt.figure(dpi=800)
-    plt.plot(np.arange(0,K_plot,1), dat["p percolation all"][0:K_plot], color = "k", label="simulations" )
-    for ii, p_percolation_pred in enumerate(p_percolation_preds[i]):
-        plt.plot(np.arange(0,min(K_plot, len(p_percolation_pred)),1), p_percolation_pred[:min(K_plot, len(p_percolation_pred))], linestyle="--", label = f"method{ii}", color = colors[ii])
-    
-    plt.xlabel("k (time step)")
-    plt.ylabel("Full Percolation Probability ")
-    plt.title(f"Percolation Probability (all source, {num_robot} agents, {num_regions} regions)")
-    plt.legend()
-    
-    plt.show()
-    
-data = {"p percolation single": p_percolation_preds_singles,
-        "p percolation all": p_percolation_preds}
-with open("percolation_trials_pred.pkl", "wb") as file:
-    pickle.dump(data, file)
     
 #%%
 
-with open("percolation_trials_pred.pkl", "rb") as file:
-    data = pickle.load(file)
+# for i, dat in enumerate(graph_data):
+#     plt.figure(dpi=800)
+#     plt.plot(np.arange(0,K_plot,1), dat["p percolation single"][0:K_plot], color = "k", label="simulations" )
+#     for ii, p_percolation_preds_single in enumerate(p_percolation_preds_singles[i]):
+#         plt.plot(np.arange(0,min(K_plot, len(p_percolation_preds_single)),1), p_percolation_preds_single[:min(K_plot, len(p_percolation_preds_single))], linestyle="--", label = f"method{ii}", color = colors[ii])
     
+#     plt.xlabel("k (time step)")
+#     plt.ylabel("Full Percolation Probability ")
+#     plt.title(f"Percolation Probability (single source, {num_robot} agents, {num_regions} regions)")
+#     plt.legend()
+    
+with open("resources/percolation_trials_pred.pkl", "rb") as file:
+    data = pickle.load(file)
+
+
 graph_types = ["er-directed", "er-undirected", "cycle", "barbell", "grid"]
 color_type = [cs.hsv_to_rgb(i/num_method, 0.9, 0.9) for i in range(len(graph_types))]
 
 p_percolation_preds_singles = data["p percolation single"]    
 p_percolation_preds = data["p percolation all"]  
+num_method = len(p_percolation_preds_singles[0])
 kemeny_factors = []
 lambda2s = []
 num_robots = []
 graph_type = []
 for i, dat in enumerate(graph_data):
     P = dat["P"]
-    
     num_regions = len(P)
     num_robots.append(dat["num_robots"])
     graph_type.append(dat["type"])
@@ -238,7 +120,6 @@ for i, dat in enumerate(graph_data):
     lambda2s.append(np.abs(lambda_[idx[-2]]))
     P_infty = np.linalg.matrix_power(P, 9999)
     P_perp = P-P_infty
-  
     Z = np.linalg.inv(np.eye(num_regions)-(P_perp))
     kemeny = np.trace(Z)
     kemeny_factors.append(num_regions/kemeny)
@@ -256,7 +137,7 @@ graph_type = graph_type.astype(np.int32)
 k_pred_all = np.zeros((len(graph_data), num_method))
 for i in range(len(graph_data)):
     for j in range(num_method):
-        p = p_percolation_preds[i][j]**2
+        p = p_percolation_preds[i][j]
         k_pred_all[i,j] = sum([(p[k]-p[k-1])*k for k in np.arange(1,len(p))])
 
 # k_preds=np.array(k_preds_singles)
@@ -264,51 +145,82 @@ for i in range(len(graph_data)):
 k_preds = np.zeros((len(graph_data), num_method))
 for i in range(len(graph_data)):
     for j in range(num_method):
-        p = np.array(p_percolation_preds_singles[i][j])**2
+        p = np.array(p_percolation_preds_singles[i][j])
         k_preds[i,j] = sum([(p[k]-p[k-1])*k for k in np.arange(1,len(p))])
         
-kc_single_sim = np.array([dat["kc single"] for dat in graph_data])
-kc_all_sim = np.array([dat["kc all"] for dat in graph_data])
+kc_single_sim = np.array([dat["kc single"] if dat["p percolation single"][-1]>0.9 else np.nan for dat in graph_data])
+kc_all_sim = np.array([dat["kc all"] if dat["p percolation all"][-1]>0.9 else np.nan for dat in graph_data])
+
+rmse = [[np.sqrt(np.mean((dat["p percolation single"][:999] - p_percolation_preds_singles[i][j]) ** 2)) for i,dat in enumerate(graph_data)] for j in range(num_method)]
+#%%
+fontsize = 12
+
+method1 = 10
+method2 = 1
+idx = graph_type==4
+plt.figure(dpi=800)
+# plt.hlines(0, xmin=0, xmax=1,linestyle="--", color="grey")
+plt.plot(lambda2s[idx], kc_single_sim[idx], ".", label=f"", color="black", alpha=0.5, mew=0)
+plt.plot(lambda2s[idx], k_preds[idx,method2], ".", label=f"", color="red", alpha=0.5, mew=0)
+
+plt.xlabel(r"$\bf{|\lambda_2|}$", fontsize=fontsize, weight="bold")
+plt.ylabel(r"$\bf{K_c}$", fontsize=fontsize, weight="bold")
+plt.legend(fontsize=fontsize,prop={'weight':"bold"})
+plt.title("", fontsize=fontsize, weight="bold")
+plt.xticks(fontsize=fontsize, weight="bold")
+plt.yticks(fontsize=fontsize, weight="bold")
+plt.ylim([0,100])
 
 
-plt.figure()
+plt.figure(dpi=800)
 plt.hlines(0, xmin=0, xmax=1,linestyle="--", color="grey")
 # for method in range(num_method):
-#     plt.plot(lambda2s, (k_preds[:,method]-kc_single_sim)/kc_single_sim, ".", color=colors[method], label=f"{method}")
-plt.plot(kemeny_factors, (k_preds[:,5]-kc_single_sim)/kc_single_sim, ".", color=colors[5], label=f"{5}")
-plt.plot(kemeny_factors, (k_preds[:,9]-kc_single_sim)/kc_single_sim, ".", color=colors[9], label=f"{9}")
+#     plt.plot(lambda2s, (k_preds[:,method]-kc_single_sim)/kc_single_sim, ".", color=colors[method], alpha=0.5, label=f"{method}", mew=0)
+plt.plot(lambda2s, (k_preds[:,0]-kc_single_sim)/kc_single_sim, ".", label=f"Independent Model", color="black", alpha=0.5, mew=0)
+plt.plot(lambda2s, (k_preds[:,method1]-kc_single_sim)/kc_single_sim, ".", label=f"{method1}", color=colors[method1], alpha=0.5, mew=0)
+plt.plot(lambda2s, (k_preds[:,method2]-kc_single_sim)/kc_single_sim, ".", label="Corrected", color=colors[method2], alpha=0.5, mew=0)
+plt.xlabel(r"$\bf{|\lambda_2|}$", fontsize=fontsize, weight="bold")
+plt.ylabel(r"$\bf{(K_{c,pred}-K_c)/K_c}$", fontsize=fontsize, weight="bold")
+plt.legend(fontsize=fontsize,prop={'weight':"bold"})
+plt.title("Relative Percolation Time Prediction Error \n (Single Source)", fontsize=fontsize, weight="bold")
+plt.xticks(fontsize=fontsize, weight="bold")
+plt.yticks(fontsize=fontsize, weight="bold")
+plt.ylim([-1,1])
 
 
-plt.xlabel(r"$\lambda_2$")
+err_baseline = np.abs((k_preds[:,0]-kc_single_sim)/kc_single_sim)
+err_1 = np.abs((k_preds[:,method2]-kc_single_sim)/kc_single_sim)
 
-plt.ylabel(r"$(K_{c,pred}-K_c)/K_c$")
-plt.legend()
-plt.title("single source")
-
-
-plt.figure()
+plt.figure(dpi=800)
 plt.hlines(0, xmin=0, xmax=1,linestyle="--", color="grey")
-# for method in range(num_method):
-#     plt.plot(kemeny_factors, (k_pred_all[:,method]-kc_all_sim)/kc_all_sim, ".", color=colors[method], label=f"{method}")
+plt.plot(lambda2s, err_1-err_baseline, ".", label=f"Independent Model", color="black", alpha=0.5, mew=0)
+plt.xlabel(r"$\bf{|\lambda_2|}$", fontsize=fontsize, weight="bold")
+plt.ylabel(r"$\bf{(K_{c,pred}-K_c)/K_c}$", fontsize=fontsize, weight="bold")
+plt.legend(fontsize=fontsize,prop={'weight':"bold"})
+plt.title("Pairwise \n (single Source)", fontsize=fontsize, weight="bold")
+plt.xticks(fontsize=fontsize, weight="bold")
+plt.yticks(fontsize=fontsize, weight="bold")
+plt.ylim([-1,1])
 
-plt.plot(lambda2s, (k_pred_all[:,1]-kc_all_sim)/kc_all_sim, ".", color=colors[5], label=f"{1}")
-plt.plot(lambda2s, (k_pred_all[:,9]-kc_all_sim)/kc_all_sim, ".", color=colors[9], label=f"{9}")
-
-
-plt.xlabel("Normalized Kemeny Factor")
-plt.ylabel(r"$(K_{c,pred}-K_c)/K_c$")
-plt.legend()
-plt.title("all source")
-
-plt.figure()
+plt.figure(dpi=800)
 plt.hlines(0, xmin=0, xmax=1,linestyle="--", color="grey")
-method = 9
-for i in  range(len(graph_types)):
-    idx = np.where(np.array(graph_type)==i)[0]
-    plt.plot(lambda2s[idx], (k_preds[idx,method]-kc_single_sim[idx])/kc_single_sim[idx], ".", color=color_type[i], label=graph_types[i])
+plt.plot(lambda2s, (k_pred_all[:,0]-kc_all_sim)/kc_all_sim, ".", label=f"Independent Model", color="black", alpha=0.5, mew=0)
+plt.plot(lambda2s, (k_pred_all[:,method2]-kc_all_sim)/kc_all_sim, ".", color=colors[method2], label=r"$\lambda_2-$Corrected", alpha=0.5, mew=0)
+plt.xlabel(r"$\bf{|\lambda_2|}$", fontsize=fontsize, weight="bold")
+plt.ylabel(r"$\bf{(K_{c,pred}-K_c)/K_c}$", fontsize=fontsize, weight="bold")
+plt.legend(fontsize=fontsize,prop={'weight':"bold"})
+plt.title("Relative Percolation Time Prediction Error \n (All Source)", fontsize=fontsize, weight="bold")
+plt.xticks(fontsize=fontsize, weight="bold")
+plt.yticks(fontsize=fontsize, weight="bold")
 
-plt.xlabel(r"$\lambda_2$")
-
-plt.ylabel(r"$(K_{c,pred}-K_c)/K_c$")
-plt.legend()
-plt.title("single source")
+# err_baseline = np.abs((k_pred_all[:,0]-kc_all_sim)/kc_all_sim)
+# err_1 = np.abs((k_pred_all[:,method2]-kc_all_sim)/kc_all_sim)
+# plt.figure()
+# plt.hlines(0, xmin=0, xmax=1,linestyle="--", color="grey")
+# plt.plot(lambda2s, err_1-err_baseline, ".", label=f"Independent Model", color="black", alpha=0.5, mew=0)
+# plt.xlabel(r"$\bf{|\lambda_2|}$", fontsize=fontsize, weight="bold")
+# plt.ylabel(r"$\bf{(K_{c,pred}-K_c)/K_c}$", fontsize=fontsize, weight="bold")
+# plt.legend(fontsize=fontsize,prop={'weight':"bold"})
+# plt.title("Pairwise \n (All Source)", fontsize=fontsize, weight="bold")
+# plt.xticks(fontsize=fontsize, weight="bold")
+# plt.yticks(fontsize=fontsize, weight="bold")

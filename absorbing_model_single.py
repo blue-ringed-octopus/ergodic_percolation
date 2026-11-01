@@ -14,19 +14,29 @@ import networkx as nx
 from tqdm import tqdm
 import pickle 
 from absorbing_model import Absoorbing_Model
-num_trial = 9000
-with open("resources/percolation_trials_complete.pkl", "rb") as file:
+from simulation import World, Agent, run_trial
+num_trial = 1000
+with open("resources/percolation_trials.pkl", "rb") as file:
     graph_data = pickle.load(file)
-    
-dat = graph_data[332]
+
+# with open("resources/percolation_trials_complete.pkl", "rb") as file:
+#     graph_data = pickle.load(file)
+        
+        
+dat = graph_data[3]
 P = dat["P"]
 num_regions = len(P)
 p0 = dat["p0"]
 num_robot = dat["num_robots"]
-# num_regions = 25# np.random.randint(80,100)
+graph_type = dat["type"]
+
+# num_regions = 50# np.random.randint(80,100)
 # num_robot = 3# np.random.randint(10,30)
-# # p = np.random.rand(num_regions)
-# # p[1:] = p[1:]/np.sum(p[1:])*(1-p[0])
+# P = np.tile(dirichlet.rvs(np.ones(num_regions)),(num_regions,1)).T
+# p0 = dirichlet.rvs(np.ones(num_regions))[0]
+# graph_type= "complete"
+# p = np.random.rand(num_regions)
+# p[1:] = p[1:]/np.sum(p[1:])*(1-p[0])
 
  
 
@@ -61,121 +71,14 @@ num_robot = dat["num_robots"]
 # # p_infty = np.linalg.matrix_power(P,9999)[:,0]
 # # p0=p_infty
 # p0 = dirichlet.rvs(1*np.ones(num_regions))[0]
-#%%
 
-    
+#%% absorbing model
 model = Absoorbing_Model(P, p0, num_robot)
 
-# p_not_met_test = [1]
-# for k in range(5000):
-#     p_not_met_test.append((1-np.inner(pk[k], pk[k]))*p_not_met_test[-1])
-    
-# p_not_met_test[1:]-p_not_met
-#%% absorbing model
-pk=[p0.copy()]
-for k in range(5000):
-    pk.append(P@pk[k].copy())
-    
-lambda2 = model.lambda2
-# I=2
-# p_informed = [1-p_not_met**I for I in range(num_robot)]
-
-# p_first_informed = np.diff(p_informed)
-# p_condition = p_first_informed/(1-p_informed[0:-1])
-# # p_informed_condition=[]
-# for I in range(num_robot):
-#     p=[]
-#     for k in np.arange(1,5000):
-#         p_not_met_k = (1-lambda2**k)*p_not_met[k]**(I)+lambda2**k*p_not_met[k]
-#         p_not_met_k1 = (1-lambda2**(k-1))*p_not_met[k-1]**(I)+lambda2**(k-1)*p_not_met[k-1]
-#         p_met_k = 1-p_not_met_k
-#         p_met_k1 = 1-p_not_met_k1
-#         p_first_meet_k = p_met_k - p_met_k1
-#         p.append(p_first_meet_k/(p_not_met_k1))
-#     p_informed_condition.append(p)
-#%%
-# tau = 1/(1-lambda2)
-# tau = kemeny/num_regions
-# tau=kemeny
-
-    
-def Mk(k, pk):
-    M = np.zeros((num_robot,num_robot))
-    # p_informed = [1-p_not_met**I for I in range(num_robot)]
-    # p_first_informed = [np.diff(p) for p in p_informed]
-    
-    # # p_condition = np.array([p_first_informed[I]/(1-p_informed[I][0:-1]) for I in range(num_robot)])
-    # p_condition = np.array([np.exp(np.log(p_first_informed[I])-np.log((1-p_informed[I][0:-1]))) for I in range(num_robot)])
-    for i in range(num_robot):
-        for j in range(num_robot):
-            I = j+1 #informed robot
-            n = num_robot - I # number of uninformed robot
-            if n==0:
-                if i>=j:
-                    M[i,j] = 1
-            else:
-
-                if k==0:
-                    p_informed_condition = 1-(1-np.inner(p0,p0))**I
-                else:
-                    if k==1:
-                        p_not_met_k1 = p_not_met[0]**(I)
-                    else:
-                        p_not_met_k1 = (1-lambda2**(k-1))*p_not_met[k-1]**(I)+lambda2**(k-1)*p_not_met[k-1]
-
-                    p_not_met_k = (1-lambda2**k)*p_not_met[k]**(I)+lambda2**k*p_not_met[k]
-                    # p_not_met_k = p_not_met[k]**(I)
-                    # p_not_met_k1 = p_not_met[k-1]**(I)
-                    p_met_k = 1-p_not_met_k
-                    p_met_k1 = 1-p_not_met_k1
-                    p_first_meet_k = p_met_k - p_met_k1
-                    p_informed_condition = p_first_meet_k/(p_not_met_k1)
-                    # p_informed_condition = p_condition[I,k]
-                    # p_informed_condition =  1-(1-np.inner(pk[k], pk[k]))**(I+(1-I)*np.exp(-k/tau))
-                # p_informed_condition = (num_regions/kemeny)*np.tanh(2*num_regions/kemeny)*(1-(p_not_meet_conditional)**I)
-                # p_informed_condition = (num_regions/kemeny_k[k])*np.tanh(2*num_regions/kemeny_k[k])*(1-(p_not_meet_conditional)**I)
-                # p_informed_condition = (1-(p_not_meet_conditional)**(I*((num_regions)/(kemeny))))
-                # p_informed_condition = (1-(p_not_meet_conditional)**(I*((num_regions)*np.tanh(2*num_regions/kemeny_k[k])/kemeny_k[k])))
-                # p_informed_condition = (1-(p_not_meet_conditional)**(I*((num_regions)*np.tanh(I*num_regions/kemeny_k[k])/kemeny_k[k])))
-                # p_informed_condition = (1-(p_not_meet_conditional)**(I*(num_regions/kemeny)))
-                # p_informed_condition = (1-(p_not_meet_conditional)**(I))
-
-                # p_informed_condition = (1-lambda2)*(1-(p_not_meet_conditional)**I)
-                # p_informed_condition = (1/(1+lambda2))*(1-(p_not_meet_conditional)**I)
-                if i>=j:
-                    r = i - j  #increment of informed robot 
-                    M[i,j] = math.comb(n,r)*(p_informed_condition)**r*(1-p_informed_condition)**(n-r)
-    return M
-
-def p_absorb_markov(P, p0):
-    # K0 = 1000
-    M0 = np.zeros((K0,num_robot,num_robot))
-    
-    v = np.zeros(num_robot-1)
-    v[0]=1
-    p_percolation_preds=[]
-    prod = np.eye(num_robot-1)   
-    
-    for k in tqdm(range(K0)):
-        M0[k,:,:] = Mk(k, pk)
-                
-    
-    for T in np.arange(0,K0,1):
-        prod = M0[T,:num_robot-1, :num_robot-1].copy()@prod
-        p_percolation_preds.append(1- sum(prod@v))    
-    p_percolation_preds=np.array(p_percolation_preds)
-    p_percolation_preds[p_percolation_preds>1]=1
-    k_pred =sum([(p_percolation_preds[k]-p_percolation_preds[k-1])*k for k in np.arange(1,K0)])
-    
-    M = M0
-    # # k_pred = K0
-    return p_percolation_preds, k_pred, M
-p_percolation_preds_test,k_pred_test, M_test =model.pred(9)
+p_percolation_preds_single ,k_pred, M =model.pred(12)
 p_not_met = model.p_not_met
-K0 = len(p_percolation_preds_test)
 
 # p_percolation_preds_fc , _ = p_absorb_fully_connected()
-p_percolation_preds_single, k_pred, M = p_absorb_markov(P.copy(), p0.copy())
 K = min(int(np.floor(3*k_pred)), len(M))
 percolation_percent_expected =[1/num_robot]
 v=np.zeros(num_robot)
@@ -187,9 +90,6 @@ for k in range(K):
 
 p_percolation_preds = np.array([p**(num_robot-1) for p in p_percolation_preds_single])
 
-
-plt.plot(p_percolation_preds_single[:len(p_percolation_preds_test)],color="red")
-plt.plot(p_percolation_preds_test,"--", color="blue")
 #%% mean field model
     
     
@@ -214,44 +114,26 @@ for k in range(K):
     # print(Ik[i]/NI, pk[i])
 I = np.array(I)
 #%% simulation
-kc_single = np.ones(num_trial)*np.nan
-kc = np.ones(num_trial)*np.nan
-rho = np.zeros((num_trial, K, num_regions))
-I_sim = np.zeros((num_trial,K+1, num_regions))
-for trial in tqdm(range(num_trial)):
-    state = np.eye(num_robot, dtype=bool)
-    r = np.random.choice(range(num_regions), num_robot, p=p0)
-    I_sim[trial,0,r[0]] += 1
-    for k in range(K): 
-        for i,j in combinations(range(num_robot), 2): 
-            if r[i]==r[j]:
-                info = state[i,:].copy() |  state[j,:].copy() 
-                state[i,:] = info
-                state[j,:] = info
-        # for region in range(num_regions):
-        #     if region in r:
-        #         robots = np.where(r==region)[0]
-        #         state[robots,:] = np.sum([state[rob] for rob in robots], axis=0).astype(bool)
-        for robot in range(num_robot):
-            I_sim[trial,k+1,r[robot]]+=state[robot,0]
-            
-        if (np.prod(state[:,0])):
-            kc_single[trial]= np.nanmin([k,kc_single[trial]])
-            
-        if (np.prod(state)):
-            I_sim[trial,k+1:,:]= I_sim[trial,k+1,:]
-            kc[trial]= np.nanmin([k,kc[trial]])
-            break
-        
-        for robot in range(num_robot):
-            r[robot] = np.random.choice(range(num_regions), 1, p=P[:,r[robot]])[0]    
-            # r[robot] = np.random.choice(range(num_regions), 1, p=pk[k+1])[0]
 
-            rho[trial,k,r[robot]]+=1/num_robot
-        # r[0] = np.random.choice(range(num_regions), 1, p=np.linalg.matrix_power(P, k+1)@I[0])
-
-rho = np.mean(rho,axis=0)
+agents = {}
+for i in range(num_robot):
+    agents[i] = Agent(i)
+world = World(graph_type,agents)
+kc_single, kc, I_sim = run_trial(world,P,p0, num_trial, 100000)
+# for trial in tqdm(range(num_trial)):
+#     world.reset(p0=p0, P=P)
+#     for k in range(K):
+#         I_sim[trial, k] = world.get_informed_percentage(0)
+#         information_state = world.step()
+#         if (np.prod(information_state[:,0])):
+#             kc_single[trial]= np.nanmin([k,kc_single[trial]])
+            
+#         if (np.prod(information_state)):
+#             kc[trial] = np.nanmin([k,kc[trial]])
+#             I_sim[trial, k+1:] = world.get_informed_percentage(0)
+#             break
 #%%
+pk = model.pk.copy()
 x0 = 1/num_robot
 x=[x0]
 for k in range(K):
@@ -301,11 +183,11 @@ for i in range(num_trial):
 
 p_percolation_single_sim = np.mean(k_arr_single,axis=0)
 
-K_plot = min(K, I_sim.shape[1])
-# K_plot = 100
+K_plot = np.min((K, I_sim.shape[1], len(p_percolation_preds_single)))
+# K_plot = 500
 
 plt.figure()
-plt.plot(np.arange(K_plot),(np.sum(np.mean(I_sim, axis=0),axis=1)/num_robot)[0:K_plot], "k", label="simulation")
+plt.plot(np.arange(K_plot),np.mean(I_sim, axis=0)[0:K_plot], "k", label="simulation")
 # plt.plot(np.arange(K_plot), x[0:K_plot],"--", color = "blue", label="Mean-Field-Approx.")            
 plt.plot(np.arange(K_plot),(np.sum(I,axis=1)/num_robot)[0:K_plot],"--", label="Mean-Field (Adjusted)")
 plt.plot(np.arange(K_plot),percolation_percent_expected[0:K_plot],"--", color="red", label="Absorbing Model")
@@ -316,10 +198,9 @@ plt.title(f"informed percentage({num_robot} agents, {num_regions} regions)")
 plt.figure(dpi=800)
 plt.plot(np.arange(0,K_plot,1), p_percolation_single_sim[0:K_plot], color = "k", label="simulations (single source)" )
 # plt.vlines(k_pred,0,1, label="Mean Passage Time", color="gray", linestyle="--")
-plt.plot(np.arange(1,1+min(K_plot, len(p_percolation_preds_single)),1), p_percolation_preds_single[:min(K_plot, len(p_percolation_preds_single))], color="red", linestyle="--", label = "First Hitting Model")
+plt.plot(np.arange(0,min(K_plot, len(p_percolation_preds_single)),1), p_percolation_preds_single[:min(K_plot, len(p_percolation_preds_single))], color="red", linestyle="--", label = "First Hitting Model")
 # plt.plot(np.arange(0,len(p_percolation_preds_fc),1), p_percolation_preds_fc, color="green", linestyle="--", label = "First Hitting Model (FC)")
-plt.plot(dat["p percolation single"][1:K_plot],'--')
-
+# plt.plot(dat["p percolation single"][1:K_plot],'--', label="saved")
 plt.xlabel("k (time step)")
 plt.ylabel("Full Percolation Probability ")
 plt.title(f"Percolation Probability (single source, {num_robot} agents, {num_regions} regions)")
@@ -336,21 +217,6 @@ plt.ylabel("Full Percolation Probability ")
 plt.title(f"Percolation Probability (all source, {num_robot} agents, {num_regions} regions)")
 plt.legend()
 
-p_percolation_k = np.array([sum(kc_single==i) for i in range(K)])/num_trial
-kc_sim = sum([k*p_percolation_k[k] for k in range(len(p_percolation_k))])
+p_percolation_k = np.array([sum(kc_single==i) for i in range(1+int(max(kc_single)))])/num_trial
+kc_sim = np.inner(p_percolation_k, np.arange(0,len(p_percolation_k)))#sum([k*p_percolation_k[k] for k in range(len(p_percolation_k))])
 print(k_pred,kc_sim)
-
-#%%
-# import pickle 
-# with open('data.pkl', 'rb') as file:
-#     dat = pickle.load(file)
-# dat["k"].append(num_regions/kemeny)
-# dat["err"].append((k_pred - np.nanmean(kc_single))/np.nanmean(kc_single))
-# with open("data.pkl", "wb") as file:
-#     pickle.dump(dat, file)
-    
-# plt.figure()
-# plt.hlines(0, xmin=0, xmax=1,linestyle="--", color="grey")
-# plt.plot(dat["k"], dat["err"], ".")
-# plt.xlabel("Normalized Kemeny Factor")
-# plt.ylabel(r"$(K_{c,pred}-K_c)/K_c$")

@@ -231,7 +231,16 @@ class Absoorbing_Model:
                                 p_met_k = 1-p_not_met_k
                                 p_met_k1 = 1-p_not_met_k1
                                 p_first_meet_k = p_met_k - p_met_k1
-                                p_informed_condition = kemeny_factor*p_first_meet_k/(p_not_met_k1)
+                                p_informed_condition_n = p_first_meet_k/(p_not_met_k1)
+                                
+                                                    
+                                p_met_k = 1-p_not_met[k]
+                                p_met_k1 = 1-p_not_met[k-1]
+                                p_first_meet_k = p_met_k - p_met_k1
+                                p_informed_condition_1 = p_first_meet_k/(p_not_met_k1)
+                                
+                                p_informed_condition = a[k]*p_informed_condition_1+(1-a[k])*p_informed_condition_n
+                                
                     if i>=j:
                         r = i - j  #increment of informed robot 
                         M[i,j] = math.comb(n,r)*(p_informed_condition)**r*(1-p_informed_condition)**(n-r)

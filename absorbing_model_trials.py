@@ -84,7 +84,13 @@ for i, dat in enumerate(tqdm(graph_data)):
 
     
 #%%
-
+import numpy as np
+import matplotlib.pyplot as plt
+import math
+import pickle 
+import colorsys as cs
+import os
+from absorbing_model import Absoorbing_Model
 # for i, dat in enumerate(graph_data):
 #     plt.figure(dpi=800)
 #     plt.plot(np.arange(0,K_plot,1), dat["p percolation single"][0:K_plot], color = "k", label="simulations" )
@@ -96,16 +102,22 @@ for i, dat in enumerate(tqdm(graph_data)):
 #     plt.title(f"Percolation Probability (single source, {num_robot} agents, {num_regions} regions)")
 #     plt.legend()
     
+with open("resources/percolation_trials.pkl", "rb") as file:
+    graph_data = pickle.load(file)
+    
 with open("resources/percolation_trials_pred.pkl", "rb") as file:
     data = pickle.load(file)
 
-
+method1 = 10
+method2 = 1
 graph_types = ["er-directed", "er-undirected", "cycle", "barbell", "grid"]
-color_type = [cs.hsv_to_rgb(i/num_method, 0.9, 0.9) for i in range(len(graph_types))]
 
-p_percolation_preds_singles = data["p percolation single"]    
-p_percolation_preds = data["p percolation all"]  
-num_method = len(p_percolation_preds_singles[0])
+p_percolation_preds_singles = [[graph[method]["p percolation single"] for method in graph.keys()] for graph in data.values()]
+p_percolation_preds_all = [[graph[method]["p percolation all"] for method in graph.keys()] for graph in data.values()]
+num_method = len(data[0])
+color_type = [cs.hsv_to_rgb(i/len(graph_types), 0.9, 0.9) for i in range(len(graph_types))]
+colors = [cs.hsv_to_rgb(i/num_method, 0.9, 0.9) for i in range(num_method)]
+
 kemeny_factors = []
 lambda2s = []
 num_robots = []
@@ -133,31 +145,89 @@ for i, type_ in enumerate(graph_types):
     for j, entry in enumerate(graph_type):
         if entry == type_:
             graph_type[j]= int(i)
+            
 graph_type = graph_type.astype(np.int32)
 k_pred_all = np.zeros((len(graph_data), num_method))
 for i in range(len(graph_data)):
     for j in range(num_method):
-        p = p_percolation_preds[i][j]
-        k_pred_all[i,j] = sum([(p[k]-p[k-1])*k for k in np.arange(1,len(p))])
+        p = p_percolation_preds_all[i][j]
+        if p is None:
+            k_pred_all[i,j] = None
+        else:
+            k_pred_all[i,j] = np.inner(np.diff(p), np.arange(1, p.size) )
+
+            # k_pred_all[i,j] = sum([(p[k]-p[k-1])*k for k in np.arange(1,p.size)])
 
 # k_preds=np.array(k_preds_singles)
 
 k_preds = np.zeros((len(graph_data), num_method))
 for i in range(len(graph_data)):
     for j in range(num_method):
-        p = np.array(p_percolation_preds_singles[i][j])
-        k_preds[i,j] = sum([(p[k]-p[k-1])*k for k in np.arange(1,len(p))])
+        p = p_percolation_preds_singles[i][j]
+        if p is None:
+            k_preds[i,j] = None
+        else:
+            k_preds[i,j] = np.inner(np.diff(p), np.arange(1, len(p)) )
         
 kc_single_sim = np.array([dat["kc single"] if dat["p percolation single"][-1]>0.9 else np.nan for dat in graph_data])
 kc_all_sim = np.array([dat["kc all"] if dat["p percolation all"][-1]>0.9 else np.nan for dat in graph_data])
 
-rmse = [[np.sqrt(np.mean((dat["p percolation single"][:999] - p_percolation_preds_singles[i][j]) ** 2)) for i,dat in enumerate(graph_data)] for j in range(num_method)]
+# rmse = [[np.sqrt(np.mean((dat["p percolation single"][:999] - p_percolation_preds_singles[i][j]) ** 2)) for i,dat in enumerate(graph_data)] for j in range(num_method)]
 #%%
 fontsize = 12
 
-method1 = 10
-method2 = 1
-idx = graph_type==4
+plt.figure(dpi=800)
+plt.hlines(0, xmin=0, xmax=1,linestyle="--", color="grey")
+for graph in range(len(graph_types)):
+    idx = graph_type==graph
+    plt.plot(lambda2s[idx], (k_preds[idx,0]-kc_single_sim[idx])/kc_single_sim[idx], ".", label=graph_types[graph], alpha=1, mew=0)
+plt.xlabel(r"$\bf{|\lambda_2(P)|}$", fontsize=fontsize, weight="bold")
+plt.ylabel(r"$\bf{(K_{c,pred}-K_c)/K_c}$", fontsize=fontsize, weight="bold")
+plt.legend(fontsize=fontsize,prop={'weight':"bold"})
+plt.title("Relative Error of Independent Model \n (single Source)", fontsize=fontsize, weight="bold")
+plt.xticks(fontsize=fontsize, weight="bold")
+plt.yticks(fontsize=fontsize, weight="bold")
+
+plt.figure(dpi=800)
+plt.hlines(0, xmin=0, xmax=1,linestyle="--", color="grey")
+for graph in range(len(graph_types)):
+    idx = graph_type==graph
+    plt.plot(lambda2s[idx], (k_preds[idx,1]-kc_single_sim[idx])/kc_single_sim[idx], ".", label=graph_types[graph], alpha=1, mew=0)
+plt.xlabel(r"$\bf{|\lambda_2(P)|}$", fontsize=fontsize, weight="bold")
+plt.ylabel(r"$\bf{(K_{c,pred}-K_c)/K_c}$", fontsize=fontsize, weight="bold")
+plt.legend(fontsize=fontsize,prop={'weight':"bold"})
+plt.title("Relative Error of Kemeny Factor Model \n (single Source)", fontsize=fontsize, weight="bold")
+plt.xticks(fontsize=fontsize, weight="bold")
+plt.yticks(fontsize=fontsize, weight="bold")
+
+plt.figure(dpi=800)
+plt.hlines(0, xmin=0, xmax=1,linestyle="--", color="grey")
+for graph in range(len(graph_types)):
+    idx = graph_type==graph
+    plt.plot(lambda2s[idx], (k_preds[idx,10]-kc_single_sim[idx])/kc_single_sim[idx], ".", label=graph_types[graph], alpha=1, mew=0)
+plt.xlabel(r"$\bf{|\lambda_2(P)|}$", fontsize=fontsize, weight="bold")
+plt.ylabel(r"$\bf{(K_{c,pred}-K_c)/K_c}$", fontsize=fontsize, weight="bold")
+plt.legend(fontsize=fontsize,prop={'weight':"bold"})
+plt.title("Relative Error of Dependent Model \n (single Source)", fontsize=fontsize, weight="bold")
+plt.xticks(fontsize=fontsize, weight="bold")
+plt.yticks(fontsize=fontsize, weight="bold")
+
+plt.figure(dpi=800)
+plt.hlines(0, xmin=0, xmax=1,linestyle="--", color="grey")
+for graph in range(len(graph_types)):
+    idx = graph_type==graph
+    plt.plot(lambda2s[idx], (k_preds[idx,12]-kc_single_sim[idx])/kc_single_sim[idx], ".", label=graph_types[graph], alpha=1, mew=0)
+plt.xlabel(r"$\bf{|\lambda_2(P)|}$", fontsize=fontsize, weight="bold")
+plt.ylabel(r"$\bf{(K_{c,pred}-K_c)/K_c}$", fontsize=fontsize, weight="bold")
+plt.legend(fontsize=fontsize,prop={'weight':"bold"})
+plt.title("Relative Error of Dependent Model \n (single Source)", fontsize=fontsize, weight="bold")
+plt.xticks(fontsize=fontsize, weight="bold")
+plt.yticks(fontsize=fontsize, weight="bold")
+
+
+
+
+idx = graph_type==4 
 plt.figure(dpi=800)
 # plt.hlines(0, xmin=0, xmax=1,linestyle="--", color="grey")
 plt.plot(lambda2s[idx], kc_single_sim[idx], ".", label=f"", color="black", alpha=0.5, mew=0)
@@ -177,7 +247,7 @@ plt.hlines(0, xmin=0, xmax=1,linestyle="--", color="grey")
 # for method in range(num_method):
 #     plt.plot(lambda2s, (k_preds[:,method]-kc_single_sim)/kc_single_sim, ".", color=colors[method], alpha=0.5, label=f"{method}", mew=0)
 plt.plot(lambda2s, (k_preds[:,0]-kc_single_sim)/kc_single_sim, ".", label=f"Independent Model", color="black", alpha=0.5, mew=0)
-plt.plot(lambda2s, (k_preds[:,method1]-kc_single_sim)/kc_single_sim, ".", label=f"{method1}", color=colors[method1], alpha=0.5, mew=0)
+plt.plot(lambda2s, (k_preds[:,10]-kc_single_sim)/kc_single_sim, ".", label=f"Kemeny Adjusted", color=colors[method1], alpha=0.5, mew=0)
 plt.plot(lambda2s, (k_preds[:,method2]-kc_single_sim)/kc_single_sim, ".", label="Corrected", color=colors[method2], alpha=0.5, mew=0)
 plt.xlabel(r"$\bf{|\lambda_2|}$", fontsize=fontsize, weight="bold")
 plt.ylabel(r"$\bf{(K_{c,pred}-K_c)/K_c}$", fontsize=fontsize, weight="bold")

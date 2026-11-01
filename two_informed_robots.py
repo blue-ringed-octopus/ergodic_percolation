@@ -13,8 +13,8 @@ from scipy.stats import dirichlet
 import networkx as nx
 from tqdm import tqdm
 
-num_regions = 20
-num_robot = 3
+num_regions = 100
+num_robot = 20
 num_trial = 9999
 I = num_robot-1
 
@@ -99,7 +99,7 @@ rho_I = np.zeros((num_trial, K, num_regions))
 for trial in tqdm(range(num_trial)):
     r = np.random.choice(range(num_regions), num_robot, p=p0)
     r[1:] =  np.random.choice(range(num_regions), num_robot-1, p=p_I)
-    # # r[1]=0 np.random.choice(range(num_regions), num_robot, p=p0)
+    # r[1]=0 np.random.choice(range(num_regions), num_robot, p=p0)
     # for i in np.arange(2,num_robot):
     #     r[i]=r[1]
         
@@ -133,7 +133,7 @@ p_meet_conditional_sim = [p_first_meet_sim[k] if k==0 else p_first_meet_sim[k]/(
 tau = 1/(1-lambda2)
 # tau = -1/np.log(lambda2)
 a = 1-num_regions/kemeny
-a = [lambda2**k for k in range(9999)]
+a = np.array([lambda2**k for k in range(9999)])
 
 
 # a = []
@@ -235,13 +235,13 @@ p_meet_conditional_3 = np.array([p_first_meet_3[k] if k==0 else p_first_meet_3[k
 
 p_meet_conditional_corrected = np.array([p_first_meet_corrected[k] if k==0 else p_first_meet_corrected[k]/(p_not_met_corrected[k-1]) for k in range(K)])
 p_meet_conditional_interp = np.array([p_first_meet_interp[k] if k==0 else p_first_meet_interp[k]/(1-p_met_interp[k-1]) for k in range(K)])
-
+test =(1-a[:100])*p_meet_conditional_n+ a[:100]*p_meet_conditional
 #%%
 # plt.figure()
 # plt.plot(S2[:K])
 # plt.plot(P_meet[:K])
 # plt.title("meeting chance")
-K_plot=10
+K_plot=15
 plt.figure()
 plt.plot(p_meet_conditional[:K_plot], "b", label="(1 informed)")
 plt.plot(p_meet_conditional_n[:K_plot], "g",label="(n independent)")
@@ -250,6 +250,8 @@ plt.plot(p_meet_conditional_corrected[:K_plot], "r",label="pred (corrected)")
 plt.plot(p_meet_conditional_interp[:K_plot], "orange",label="pred (interp)")
 plt.plot(1-(1-S2[:K_plot])**I, label = "unconditioned meeting")
 plt.plot(p_meet_conditional_sim[:K_plot],"k--", label="sim")
+plt.plot(test[:K_plot],"r--", label="sim")
+
 plt.title("P(meet) (conditional)")
 plt.legend()
 

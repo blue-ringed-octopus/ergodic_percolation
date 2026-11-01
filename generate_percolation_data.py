@@ -14,10 +14,10 @@ import networkx as nx
 from tqdm import tqdm
 import pickle
 
-with open("percolation_trials.pkl", "rb") as file:
+with open("resources/percolation_trials.pkl", "rb") as file:
     graph_data = pickle.load(file)
     
-num_trial = 1000
+num_trial = 10000
 
 # p = np.random.rand(num_regions)
 # p[1:] = p[1:]/np.sum(p[1:])*(1-p[0])
@@ -79,9 +79,10 @@ while len(graph_data)< 1000:
     graph_data.append(graph_dat)
     
 #%% simulation
-K = 1000
+from simulation import World, Agent, run_trial
+K = 9000
 for graph_dat in tqdm(graph_data):
-    if "p percolation single" not in graph_dat.keys():
+    if True:#"p percolation single" not in graph_dat.keys():
         P = graph_dat["P"]
         num_robot = graph_dat["num_robots"]
         p0 = graph_dat["p0"]
@@ -89,33 +90,13 @@ for graph_dat in tqdm(graph_data):
         num_regions = len(P)
         kc_single = np.ones(num_trial)*np.nan
         kc = np.ones(num_trial)*np.nan
-        rho = np.zeros((num_trial, K, num_regions))
-        I_sim = np.zeros((num_trial,K, num_regions))
-        for trial in range(num_trial):
-            state = np.eye(num_robot, dtype=bool)
-            r = np.random.choice(range(num_regions), num_robot, p=p0)
-            for k in range(K): 
-                for robot in range(num_robot):
-                    I_sim[trial,k,r[robot]]+=state[robot,0]
-                for i,j in combinations(range(num_robot), 2): 
-                    if r[i]==r[j]:
-                        info = state[i,:].copy() |  state[j,:].copy() 
-                        state[i,:] = info
-                        state[j,:] = info
-                    
-                if (np.prod(state[:,0])):
-                    kc_single[trial]= np.nanmin([k,kc_single[trial]])
-                    
-                if (np.prod(state)):
-                    kc[trial]= np.nanmin([k,kc[trial]])
-                    break
-                
-                for robot in range(num_robot):
-                    r[robot] = np.random.choice(range(num_regions), 1, p=P[:,r[robot]])[0]    
+        I_sim = np.zeros((num_trial,K))
+        agents = {}
+        for i in range(num_robot):
+            agents[i] = Agent(i)
+        world = World(graph_dat["type"],agents)
+        kc_single, kc, I_sim = run_trial(world,P,p0, num_trial, K)
         
-                    rho[trial,k,r[robot]]+=1/num_robot
-        
-        rho = np.mean(rho,axis=0)
         
         k_arr = []
         for i in range(num_trial):
@@ -136,9 +117,15 @@ for graph_dat in tqdm(graph_data):
         graph_dat["kc all"] = np.nanmean(kc)
         graph_dat["p percolation single"] = np.mean(k_arr_single, axis=0)
         graph_dat["p percolation all"] = np.mean(k_arr, axis=0)
-        graph_dat["informed percentage"] = np.mean(np.sum(I_sim/num_robot,axis=1), axis=0)
-    with open("percolation_trials.pkl", "wb") as file: 
-        pickle.dump(graph_data, file)
+        graph_dat["informed percentage"] = {"mean": np.mean(I_sim, axis=0), 
+                                            "Q0": np.quantile(I_sim, 0, axis=0),
+                                            "Q1": np.quantile(I_sim, 0.25, axis=0),
+                                            "Q2": np.quantile(I_sim, 0.5, axis=0),
+                                            "Q3": np.quantile(I_sim, 0.75, axis=0),
+                                            "Q4": np.quantile(I_sim, 1, axis=0)}
+        
+    # with open("percolation_trials.pkl", "wb") as file: 
+    #     pickle.dump(graph_data, file)
         
 # with open("percolation_trials.pkl", "rb") as file:
 #     graph_data_prior = pickle.load(file)

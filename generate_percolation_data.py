@@ -17,7 +17,6 @@ import pickle
 with open("resources/percolation_trials.pkl", "rb") as file:
     graph_data = pickle.load(file)
     
-num_trial = 10000
 
 # p = np.random.rand(num_regions)
 # p[1:] = p[1:]/np.sum(p[1:])*(1-p[0])
@@ -80,6 +79,7 @@ while len(graph_data)< 1000:
     
 #%% simulation
 from simulation import World, Agent, run_trial
+num_trial = 10000
 K = 9000
 for graph_dat in tqdm(graph_data):
     if True:#"p percolation single" not in graph_dat.keys():

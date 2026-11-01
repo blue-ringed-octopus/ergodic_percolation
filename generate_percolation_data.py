@@ -124,8 +124,8 @@ for graph_dat in tqdm(graph_data):
                                             "Q3": np.quantile(I_sim, 0.75, axis=0),
                                             "Q4": np.quantile(I_sim, 1, axis=0)}
         
-    # with open("percolation_trials.pkl", "wb") as file: 
-    #     pickle.dump(graph_data, file)
+    with open("resources/percolation_trials.pkl", "wb") as file: 
+        pickle.dump(graph_data, file)
         
 # with open("percolation_trials.pkl", "rb") as file:
 #     graph_data_prior = pickle.load(file)
